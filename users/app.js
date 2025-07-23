@@ -14,7 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(cookiesParser());
 
-app.get("/", userRoutes);
+app.use("/", userRoutes);
 
 app.listen(3000, () => {
   console.log("Server is running on port 3000");

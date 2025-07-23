@@ -35,3 +35,34 @@ module.exports.register = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+module.exports.login = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Find the user by email
+    const user = await UserModel.findOne({ email });
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    // Compare the provided password with the hashed password in the database
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    // Generate a JWT token
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    res.cookie("token", token);
+    res.send({ token, user });
+
+    // res.status(200).json({ message: "Login successful" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
