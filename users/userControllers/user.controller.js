@@ -1,5 +1,6 @@
 const UserModel = require("../models/user.model");
 const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
 module.exports.register = async (req, res) => {
   const { name, email, password } = req.body;
@@ -15,7 +16,7 @@ module.exports.register = async (req, res) => {
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
     // Create a new user
-    const newUser = new User({
+    const newUser = new UserModel({
       name,
       email,
       password: hashedPassword,
@@ -26,7 +27,7 @@ module.exports.register = async (req, res) => {
       expiresIn: "1h",
     });
 
-    res.cookie("token", token); 
+    res.cookie("token", token);
 
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
