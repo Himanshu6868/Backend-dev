@@ -82,11 +82,11 @@ module.exports.logout = async (req, res) => {
   }
 };
 
-
 module.exports.profile = async (req, res) => {
-    try {
-        res.send(req.user);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-}  
+  console.log("User profile accessed:", req.user);
+  try {
+    res.send(req.user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
