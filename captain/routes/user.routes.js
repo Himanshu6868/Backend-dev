@@ -18,4 +18,10 @@ router.get(
   captainController.profile
 );
 
+router.get(
+  "/new-ride",
+  authUserMiddleware.captainAuth,
+  captainController.waitForNewRide
+);
+
 module.exports = router;

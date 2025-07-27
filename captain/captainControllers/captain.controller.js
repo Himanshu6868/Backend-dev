@@ -1,7 +1,10 @@
 const captainModel = require("../models/captain.model");
 const bcrypt = require("bcrypt");
 const BlacklistedTokenModel = require("../models/blacklisted.model");
+const { subscribeToQueue, publishToQueue } = require("../service/rabbit");
 const jwt = require("jsonwebtoken");
+
+const pendingRequests = [];
 
 module.exports.register = async (req, res) => {
   const { name, email, password } = req.body;
@@ -105,3 +108,26 @@ module.exports.toggleAvailability = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+module.exports.waitForNewRide = async (req, res) => {
+  // Set timeout for long polling (e.g., 30 seconds)
+  req.setTimeout(30000, () => {
+    res.status(204).end(); // No Content
+  });
+
+  // Add the response object to the pendingRequests array
+  pendingRequests.push(res);
+};
+
+subscribeToQueue("new-ride", (data) => {
+  console.log("New ride data received:", data);
+  const rideData = JSON.parse(data);
+
+  // Send the new ride data to all pending requests
+  pendingRequests.forEach((res) => {
+    res.json(rideData);
+  });
+
+  // Clear the pending requests
+  pendingRequests.length = 0;
+});

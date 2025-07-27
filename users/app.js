@@ -4,8 +4,11 @@ const app = express();
 const userRoutes = require("./routes/user.routes");
 const cookiesParser = require("cookie-parser");
 const connectDB = require("./db/db");
-
 dotenv.config();
+
+const rabbitMq = require("./service/rabbit");
+
+rabbitMq.connect();
 
 connectDB();
 
