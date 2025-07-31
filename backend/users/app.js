@@ -5,6 +5,14 @@ const app = express();
 const userRoutes = require("./routes/user.routes");
 const cookiesParser = require("cookie-parser");
 const connectDB = require("./db/db");
+const cors = require("cors");
+
+app.use(s
+  cors({
+    origin: "http://localhost:3000", // your frontend URL
+    credentials: true, // enable cookies and headers like Authorization
+  })
+);
 
 const rabbitMq = require("./service/rabbit");
 
