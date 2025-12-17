@@ -7,7 +7,7 @@ const cookiesParser = require("cookie-parser");
 const connectDB = require("./db/db");
 const cors = require("cors");
 
-app.use(s
+app.use(
   cors({
     origin: "http://localhost:3000", // your frontend URL
     credentials: true, // enable cookies and headers like Authorization
