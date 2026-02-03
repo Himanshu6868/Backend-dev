@@ -1,19 +1,20 @@
 import { API_ROUTES } from "@/actions/actions";
 
 export async function loginUser(formData: FormData) {
-  const name = formData.get("name") as string;
+  // const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
   console.log("heloooo", formData);
 
   // 👉 call your API here
-  const res = await fetch(API_ROUTES.REGISTER, {
+  const res = await fetch(API_ROUTES.LOGIN, {
     method: "POST",
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ email, password }),
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
   });
 
   if (!res.ok) {
