@@ -1,3 +1,6 @@
+const dotenv = require("dotenv");
+dotenv.config();
+
 const expressProxy = require("express-http-proxy");
 const express = require("express");
 const cors = require("cors");
@@ -15,7 +18,7 @@ app.use(
 );
 
 
-app.use("/user", expressProxy("http://localhost:3001"));
+app.use("/user", expressProxy("https://verbose-succotash-r4g4w49v7w4g2pw6q-3001.app.github.dev"));
 app.use("/captain", expressProxy("http://localhost:3002"));
 app.use("/ride", expressProxy("http://localhost:3003"));
 
