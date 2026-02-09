@@ -7,19 +7,31 @@ const cors = require("cors");
 
 const app = express();
 
-console.log('aaya aaya aaaya ')
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:3000";
 const CAPTAIN_URL = process.env.CAPTAIN_URL || "http://localhost:3002";
 const RIDE_URL = process.env.RIDE_URL || "http://localhost:3003";
 const USERS_URL = process.env.USERS_URL || "http://localhost:3001";
 
-app.use(
-  cors({
-    origin: FRONTEND_ORIGIN,
-    credentials: true,
-  })
-);
+const allowedOrigins = FRONTEND_ORIGIN.split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
+const corsOptions = {
+  origin: true, // allow all origins in dev
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: [
+    "Authorization",
+    "Content-Type",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
+  maxAge: 86400,
+};
+
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 
 app.use("/user", expressProxy(USERS_URL));
 app.use("/captain", expressProxy(CAPTAIN_URL));
