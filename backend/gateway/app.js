@@ -7,8 +7,10 @@ const cors = require("cors");
 
 const app = express();
 
-console.log('aaya aaya aaaya ')
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || "http://localhost:3000";
+const CAPTAIN_URL = process.env.CAPTAIN_URL || "http://localhost:3002";
+const RIDE_URL = process.env.RIDE_URL || "http://localhost:3003";
+const USERS_URL = process.env.USERS_URL || "http://localhost:3001";
 
 app.use(
   cors({
@@ -17,10 +19,9 @@ app.use(
   })
 );
 
-
-app.use("/user", expressProxy("https://verbose-succotash-r4g4w49v7w4g2pw6q-3001.app.github.dev"));
-app.use("/captain", expressProxy("http://localhost:3002"));
-app.use("/ride", expressProxy("http://localhost:3003"));
+app.use("/user", expressProxy(USERS_URL));
+app.use("/captain", expressProxy(CAPTAIN_URL));
+app.use("/ride", expressProxy(RIDE_URL));
 
 const PORT = process.env.PORT || 4000;
 

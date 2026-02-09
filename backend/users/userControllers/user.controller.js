@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const { subscribeToQueue } = require("../service/rabbit");
 const EventEmitter = require("events");
 const rideEventEmitter = new EventEmitter();
+rideEventEmitter.setMaxListeners(50);
 
 module.exports.register = async (req, res) => {
   const { name, email, password } = req.body;
@@ -95,18 +96,36 @@ module.exports.profile = async (req, res) => {
 };
 
 module.exports.acceptedRide = async (req, res) => {
+  // Flag to prevent multiple responses
+  let responseSent = false;
+
+  // Handler function for ride-accepted event
+  const rideAcceptedHandler = (data) => {
+    if (!responseSent) {
+      responseSent = true;
+      clearTimeout(timeoutId);
+      res.send(data);
+    }
+  };
+
   // Long polling: wait for 'ride-accepted' event
-  rideEventEmitter.once("ride-accepted", (data) => {
-    res.send(data);
-  });
+  rideEventEmitter.once("ride-accepted", rideAcceptedHandler);
 
   // Set timeout for long polling (e.g., 30 seconds)
-  setTimeout(() => {
-    res.status(204).send();
+  const timeoutId = setTimeout(() => {
+    if (!responseSent) {
+      responseSent = true;
+      rideEventEmitter.removeListener("ride-accepted", rideAcceptedHandler);
+      res.status(204).send();
+    }
   }, 30000);
-};
 
-subscribeToQueue("ride-accepted", async (msg) => {
-  const data = JSON.parse(msg);
-  rideEventEmitter.emit("ride-accepted", data);
-});
+  // Clean up on client disconnect
+  req.on('close', () => {
+    if (!responseSent) {
+      responseSent = true;
+      clearTimeout(timeoutId);
+      rideEventEmitter.removeListener("ride-accepted", rideAcceptedHandler);
+    }
+  });
+};

@@ -1,5 +1,5 @@
 "use client";
-import { loginUser } from "@/actions/login";
+
 import { useState } from "react";
 import { apiRequest, apiRoutes } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -15,9 +15,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function CardDemo() {
+type Role = "rider" | "captain";
 
+export function CardDemo() {
+  const [role, setRole] = useState<Role>("rider");
   const [status, setStatus] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -27,37 +30,71 @@ export function CardDemo() {
       password: String(formData.get("password") ?? ""),
     };
 
-    setStatus("Logging in...");
+    setIsSubmitting(true);
+    setStatus(role === "rider" ? "Logging in as rider..." : "Logging in as captain...");
     try {
-      const response = await apiRequest(apiRoutes.login, {
-        method: "POST",
-        body: payload,
-      });
+      const response = await apiRequest(
+        role === "rider" ? apiRoutes.loginUser : apiRoutes.loginCaptain,
+        {
+          method: "POST",
+          body: payload,
+        }
+      );
+      localStorage.setItem("ride-role", role);
       setStatus(
         typeof response === "string"
           ? response
-          : JSON.stringify(response, null, 2)
+          : `Logged in successfully as ${role}.`
       );
-      event.currentTarget.reset();
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Login failed");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-lg">
       <CardHeader>
         <CardTitle>Login to your account</CardTitle>
         <CardDescription>
-          Enter your email below to login to your account
+          Choose your role to unlock the rider or captain experience.
         </CardDescription>
         <CardAction>
-          <Button variant="link">Sign Up</Button>
+          <Button variant="link" asChild>
+            <a href="/register">Sign Up</a>
+          </Button>
         </CardAction>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent>
           <div className="flex flex-col gap-6">
+            <div className="grid gap-3">
+              <Label>Select role</Label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(["rider", "captain"] as Role[]).map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setRole(item)}
+                    className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
+                      role === item
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-foreground hover:bg-accent"
+                    }`}
+                  >
+                    <p className="text-xs uppercase tracking-[0.2em] opacity-70">
+                      {item === "rider" ? "Rider" : "Captain"}
+                    </p>
+                    <p className="mt-1 text-base">
+                      {item === "rider"
+                        ? "Book rides faster"
+                        : "Accept nearby trips"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -83,18 +120,21 @@ export function CardDemo() {
           </div>
         </CardContent>
 
-        <CardFooter className="flex-col gap-2">
+        <CardFooter className="flex-col gap-3">
           <Button type="submit" className="w-full">
-            Login
+            {isSubmitting ? "Logging in..." : `Log in as ${role}`}
           </Button>
           {status ? (
-            <pre className="w-full whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">
-              {status}
-            </pre>
+            <div className="w-full rounded-xl border border-border bg-muted/60 p-4 text-sm text-foreground">
+              <p className="font-semibold">{status}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Continue to the ride flow to see your dashboard.
+              </p>
+              <Button asChild className="mt-3 w-full">
+                <a href="/ride">Go to ride flow</a>
+              </Button>
+            </div>
           ) : null}
-          {/* <Button variant="outline" className="w-full">
-            Login with Google
-          </Button> */}
         </CardFooter>
       </form>
     </Card>

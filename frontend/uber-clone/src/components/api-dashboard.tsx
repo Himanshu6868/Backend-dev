@@ -39,7 +39,7 @@ export function ApiDashboard() {
 
     setRegisterState({ status: "loading", message: "Registering..." });
     try {
-      const response = await apiRequest(apiRoutes.register, {
+      const response = await apiRequest(apiRoutes.registerUser, {
         method: "POST",
         body: payload,
       });
@@ -66,7 +66,7 @@ export function ApiDashboard() {
 
     setLoginState({ status: "loading", message: "Logging in..." });
     try {
-      const response = await apiRequest(apiRoutes.login, {
+      const response = await apiRequest(apiRoutes.loginUser, {
         method: "POST",
         body: payload,
       });
@@ -86,7 +86,7 @@ export function ApiDashboard() {
   const handleProfile = async () => {
     setProfileState({ status: "loading", message: "Fetching profile..." });
     try {
-      const response = await apiRequest(apiRoutes.profile, { method: "GET" });
+      const response = await apiRequest(apiRoutes.profileUser, { method: "GET" });
       setProfileState({
         status: "success",
         message: formatPayload(response),

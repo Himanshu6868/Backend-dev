@@ -37,8 +37,17 @@ export async function apiRequest<T>(
 }
 
 export const apiRoutes = {
-  register: "/user/register",
-  login: "/user/login",
-  profile: "/user/profile",
+  registerUser: "/user/register",
+  loginUser: "/user/login",
+  logoutUser: "/user/logout",
+  profileUser: "/user/profile",
+  acceptedRide: "/user/accepted-ride",
+  registerCaptain: "/captain/register",
+  loginCaptain: "/captain/login",
+  logoutCaptain: "/captain/logout",
+  profileCaptain: "/captain/profile",
+  toggleCaptainAvailability: "/captain/toggle-availability",
+  newRide: "/captain/new-ride",
   createRide: "/ride/create-ride",
+  acceptRide: "/ride/accept-ride",
 };
