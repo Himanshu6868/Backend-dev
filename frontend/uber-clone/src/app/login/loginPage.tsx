@@ -1,5 +1,6 @@
 "use client";
 
+import Cookies from "js-cookie";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest, apiRoutes } from "@/lib/api";
@@ -26,8 +27,8 @@ export function CardDemo() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    debugger;
     event.preventDefault();
+
     const formData = new FormData(event.currentTarget);
     const payload = {
       email: String(formData.get("email") ?? ""),
@@ -36,6 +37,7 @@ export function CardDemo() {
 
     setIsSubmitting(true);
     setStatus(role === "rider" ? "Logging in as rider..." : "Logging in as captain...");
+
     try {
       const response = await apiRequest(
         role === "rider" ? apiRoutes.loginUser : apiRoutes.loginCaptain,
@@ -44,13 +46,29 @@ export function CardDemo() {
           body: payload,
         }
       );
-      console.log("Login response:", response);
+      
+      const { token } = response as { token: string };
+
+      if (!token) {
+        throw new Error("Authentication token missing");
+      }
+
+      // Persist auth
+      Cookies.set("auth_token", token, {
+        expires: 7,
+        secure: true,
+        sameSite: "strict",
+      });
+
+      Cookies.set("role", role, {
+        expires: 7,
+        secure: true,
+        sameSite: "strict",
+      });
+
       setSessionRole(role);
-      setStatus(
-        typeof response === "string"
-          ? response
-          : `Logged in successfully as ${role}.`
-      );
+      setStatus(`Logged in successfully as ${role}.`);
+
       router.push(role === "rider" ? "/ride" : "/captain");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Login failed");
@@ -83,11 +101,10 @@ export function CardDemo() {
                     key={item}
                     type="button"
                     onClick={() => setRole(item)}
-                    className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${
-                      role === item
+                    className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${role === item
                         ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-card text-foreground hover:bg-accent"
-                    }`}
+                      }`}
                   >
                     <p className="text-xs uppercase tracking-[0.2em] opacity-70">
                       {item === "rider" ? "Rider" : "Captain"}
