@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiRequest, apiRoutes } from "@/lib/api";
+import { setSessionRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [complete, setComplete] = useState(false);
   const [role, setRole] = useState<"rider" | "captain">("rider");
   const [status, setStatus] = useState<string>("");
@@ -43,13 +46,14 @@ export default function RegisterPage() {
           body: payload,
         }
       );
-      localStorage.setItem("ride-role", role);
+      setSessionRole(role);
       setComplete(true);
       setStatus(
         typeof response === "string"
           ? response
           : `Account created for ${role}.`
       );
+      router.replace(role === "rider" ? "/ride" : "/captain");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Registration failed");
       setComplete(false);

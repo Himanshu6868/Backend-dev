@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { apiRequest, apiRoutes } from "@/lib/api";
+import { setSessionRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,6 +20,7 @@ import { Label } from "@/components/ui/label";
 type Role = "rider" | "captain";
 
 export function CardDemo() {
+  const router = useRouter();
   const [role, setRole] = useState<Role>("rider");
   const [status, setStatus] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,12 +43,13 @@ export function CardDemo() {
           body: payload,
         }
       );
-      localStorage.setItem("ride-role", role);
+      setSessionRole(role);
       setStatus(
         typeof response === "string"
           ? response
           : `Logged in successfully as ${role}.`
       );
+      router.replace(role === "rider" ? "/ride" : "/captain");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Login failed");
     } finally {
@@ -127,12 +131,6 @@ export function CardDemo() {
           {status ? (
             <div className="w-full rounded-xl border border-border bg-muted/60 p-4 text-sm text-foreground">
               <p className="font-semibold">{status}</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Continue to the ride flow to see your dashboard.
-              </p>
-              <Button asChild className="mt-3 w-full">
-                <a href="/ride">Go to ride flow</a>
-              </Button>
             </div>
           ) : null}
         </CardFooter>

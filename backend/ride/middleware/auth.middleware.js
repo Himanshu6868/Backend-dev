@@ -6,7 +6,11 @@ dotenv.config();
 
 module.exports.userAuth = async (req, res, next) => {
   try {
-    const token = req.cookies.token || req.headers.authorization.split(" ")[1];
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+    const token = req.cookies.token || bearerToken;
     if (!token) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -34,7 +38,11 @@ module.exports.userAuth = async (req, res, next) => {
 
 module.exports.captainAuth = async (req, res, next) => {
   try {
-    const token = req.cookies.token || req.headers.authorization.split(" ")[1];
+    const authHeader = req.headers.authorization;
+    const bearerToken = authHeader?.startsWith("Bearer ")
+      ? authHeader.split(" ")[1]
+      : null;
+    const token = req.cookies.token || bearerToken;
     if (!token) {
       return res.status(401).json({ message: "Unauthorized" });
     }
