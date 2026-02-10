@@ -17,11 +17,11 @@ export function proxy(request: NextRequest) {
   const role = request.cookies.get("ride-role")?.value;
   const isPublic = PUBLIC_ROUTES.includes(pathname);
 
-  if (!token && !isPublic) {
+  if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (token && isPublic) {
+  if (token) {
     const destination = role === "captain" ? "/captain" : "/ride";
     return NextResponse.redirect(new URL(destination, request.url));
   }
