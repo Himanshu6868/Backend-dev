@@ -36,6 +36,7 @@ module.exports.register = async (req, res) => {
     );
 
     res.cookie("token", token);
+    res.cookie("ride-role", "captain");
 
     res.status(201).json({ message: "Captain registered successfully" });
   } catch (error) {
@@ -66,6 +67,7 @@ module.exports.login = async (req, res) => {
       expiresIn: "1h",
     });
     res.cookie("token", token);
+    res.cookie("ride-role", "captain");
     res.send({ token, captain });
 
     // res.status(200).json({ message: "Login successful" });
@@ -82,6 +84,7 @@ module.exports.logout = async (req, res) => {
       await BlacklistedTokenModel.create({ token, createdAt: new Date() });
     }
     res.clearCookie("token");
+    res.clearCookie("ride-role");
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     console.error(error);
