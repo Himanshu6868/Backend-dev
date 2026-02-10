@@ -5,14 +5,31 @@ type ApiOptions = Omit<RequestInit, "body"> & {
   body?: Record<string, unknown>;
 };
 
+function getAuthToken(): string | null {
+  if (typeof window === "undefined") return null;
+  
+  const cookies = document.cookie.split(";");
+  for (const cookie of cookies) {
+    const [name, value] = cookie.trim().split("=");
+    if (name === "token") {
+      return value;
+    }
+  }
+  return null;
+}
+
 export async function apiRequest<T>(
   path: string,
   { body, headers, ...options }: ApiOptions = {}
 ): Promise<T> {
+
+    const token = getAuthToken();
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
     ...options,
