@@ -26,6 +26,7 @@ export function CardDemo() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    debugger;
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const payload = {
@@ -43,6 +44,7 @@ export function CardDemo() {
           body: payload,
         }
       );
+      console.log("Login response:", response);
       setSessionRole(role);
       setStatus(
         typeof response === "string"
