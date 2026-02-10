@@ -49,7 +49,7 @@ export function CardDemo() {
           ? response
           : `Logged in successfully as ${role}.`
       );
-      router.replace(role === "rider" ? "/ride" : "/captain");
+      router.push(role === "rider" ? "/ride" : "/captain");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Login failed");
     } finally {
