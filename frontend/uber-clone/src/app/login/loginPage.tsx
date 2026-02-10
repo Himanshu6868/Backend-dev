@@ -1,6 +1,5 @@
 "use client";
 
-import Cookies from "js-cookie";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiRequest, apiRoutes } from "@/lib/api";
@@ -52,19 +51,8 @@ export function CardDemo() {
       if (!token) {
         throw new Error("Authentication token missing");
       }
-
       // Persist auth
-      Cookies.set("auth_token", token, {
-        expires: 7,
-        secure: true,
-        sameSite: "strict",
-      });
-
-      Cookies.set("role", role, {
-        expires: 7,
-        secure: true,
-        sameSite: "strict",
-      });
+   document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`;
 
       setSessionRole(role);
       setStatus(`Logged in successfully as ${role}.`);
