@@ -13,24 +13,24 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const token = request.cookies.get("token")?.value;
   const role = request.cookies.get("ride-role")?.value;
-  const hasRole = role === "rider" || role === "captain";
   const isPublic = PUBLIC_ROUTES.includes(pathname);
 
-  if (!hasRole && !isPublic) {
+  if (!token) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (hasRole && isPublic) {
+  if (token) {
     const destination = role === "captain" ? "/captain" : "/ride";
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
-  if (hasRole && pathname.startsWith("/captain") && role !== "captain") {
+  if (token && pathname.startsWith("/captain") && role !== "captain") {
     return NextResponse.redirect(new URL("/ride", request.url));
   }
 
-  if (hasRole && pathname.startsWith("/ride") && role === "captain") {
+  if (token && pathname.startsWith("/ride") && role === "captain") {
     return NextResponse.redirect(new URL("/captain", request.url));
   }
 

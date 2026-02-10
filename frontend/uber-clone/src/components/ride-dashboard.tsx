@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiRequest, apiRoutes } from "@/lib/api";
-import { clearSessionRole, Role } from "@/lib/auth";
+import { clearSessionRole, getStoredRole, Role } from "@/lib/auth";
 
 type RideOffer = {
   id: string;
@@ -72,6 +72,17 @@ export default function RideDashboard({ role }: { role: Role }) {
   );
 
   useEffect(() => {
+    const storedRole = getStoredRole();
+    if (!storedRole) {
+      router.replace("/login");
+      return;
+    }
+
+    if (storedRole !== role) {
+      router.replace(storedRole === "rider" ? "/ride" : "/captain");
+      return;
+    }
+
     const validateRole = async () => {
       try {
         await apiRequest(role === "rider" ? apiRoutes.profileUser : apiRoutes.profileCaptain, {
