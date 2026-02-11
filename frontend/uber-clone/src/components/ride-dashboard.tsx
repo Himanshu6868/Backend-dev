@@ -117,6 +117,8 @@ export default function RideDashboard({ role }: { role: Role }) {
         return;
       }
 
+      let pollError: unknown;
+
       try {
         const response = await apiRequest<{
           _id?: string;
@@ -143,10 +145,11 @@ export default function RideDashboard({ role }: { role: Role }) {
           });
         }
       } catch (error) {
+        pollError = error;
         setCaptainStatus(error instanceof Error ? error.message : "Unable to fetch new rides");
       } finally {
         if (isActive) {
-          setTimeout(pollForNewRide, getPollDelay(error));
+          setTimeout(pollForNewRide, getPollDelay(pollError));
         }
       }
     };
@@ -168,6 +171,8 @@ export default function RideDashboard({ role }: { role: Role }) {
         return;
       }
 
+      let pollError: unknown;
+
       try {
         const response = await apiRequest<{ status?: string } | string>(apiRoutes.acceptedRide, {
           method: "GET",
@@ -176,10 +181,11 @@ export default function RideDashboard({ role }: { role: Role }) {
           setRiderStatus("Ride accepted • Your captain is on the way");
         }
       } catch (error) {
+        pollError = error;
         setRiderStatus(error instanceof Error ? error.message : "Unable to get ride updates");
       } finally {
         if (isActive) {
-          setTimeout(pollAcceptedRide, getPollDelay(error));
+          setTimeout(pollAcceptedRide, getPollDelay(pollError));
         }
       }
     };
