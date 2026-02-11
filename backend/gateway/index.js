@@ -1,4 +1,3 @@
-const rateLimit = require("express-rate-limit");
 const dotenv = require("dotenv");
 dotenv.config();
 
@@ -34,40 +33,40 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-const PROXY_TIMEOUT = 60000; 
+// const PROXY_TIMEOUT = 60000; 
 
-const createProxy = (target) =>
-  expressProxy(target, {
-    timeout: PROXY_TIMEOUT,
+// const createProxy = (target) =>
+//   expressProxy(target, {
+//     timeout: PROXY_TIMEOUT,
 
-    proxyReqOptDecorator: (proxyReqOpts) => {
-      proxyReqOpts.timeout = PROXY_TIMEOUT;
-      return proxyReqOpts;
-    },
+//     proxyReqOptDecorator: (proxyReqOpts) => {
+//       proxyReqOpts.timeout = PROXY_TIMEOUT;
+//       return proxyReqOpts;
+//     },
 
-    proxyErrorHandler: (err, res, next) => {
-      console.error("Proxy error:", err.message);
+//     proxyErrorHandler: (err, res, next) => {
+//       console.error("Proxy error:", err.message);
 
-      res.status(502).json({
-        message: "Upstream service unavailable",
-        error: err.code || err.message,
-      });
-    },
-  });
+//       res.status(502).json({
+//         message: "Upstream service unavailable",
+//         error: err.code || err.message,
+//       });
+//     },
+//   });
 
-  app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 1000, // increase
-    standardHeaders: true,
-    legacyHeaders: false,
-  })
-);
+//   app.use(
+//   rateLimit({
+//     windowMs: 15 * 60 * 1000,
+//     max: 1000, // increase
+//     standardHeaders: true,
+//     legacyHeaders: false,
+//   })
+// );
 
 
-app.use("/user", createProxy(USERS_URL));
-app.use("/captain", createProxy(CAPTAIN_URL));
-app.use("/ride", createProxy(RIDE_URL));
+app.use("/user", expressProxy(USERS_URL));
+app.use("/captain", expressProxy(CAPTAIN_URL));
+app.use("/ride", expressProxy(RIDE_URL));
 
 const PORT = process.env.PORT || 4000;
 
