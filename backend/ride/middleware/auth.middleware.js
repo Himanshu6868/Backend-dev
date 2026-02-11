@@ -7,6 +7,34 @@ dotenv.config();
 const USER_SERVICE_URL = process.env.USERS_URL || process.env.BASE_URL;
 const CAPTAIN_SERVICE_URL = process.env.CAPTAIN_URL || process.env.BASE_URL;
 
+
+const normalizeBaseUrl = (url = "") => url.replace(/\/$/, "");
+
+const fetchProfileWithFallback = async ({ baseUrl, token, paths }) => {
+  const normalizedBase = normalizeBaseUrl(baseUrl);
+  let lastError;
+
+  for (const path of paths) {
+    try {
+      const response = await axios.get(`${normalizedBase}${path}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      lastError = error;
+
+      if (error?.response?.status !== 404) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+};
+
+
 module.exports.userAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -19,13 +47,11 @@ module.exports.userAuth = async (req, res, next) => {
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const response = await axios.get(`${USER_SERVICE_URL}/user/profile`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const user = await fetchProfileWithFallback({
+      baseUrl: USER_SERVICE_URL,
+      token,
+      paths: ["/profile", "/user/profile"],
     });
-
-    const user = response.data;
 
     if (!user) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -51,16 +77,13 @@ module.exports.captainAuth = async (req, res, next) => {
     }
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const response = await axios.get(
-      `${CAPTAIN_SERVICE_URL}/captain/profile`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+   const captain = await fetchProfileWithFallback({
+      baseUrl: CAPTAIN_SERVICE_URL,
+      token,
+      paths: ["/profile", "/captain/profile"],
+    });
 
-    const captain = response.data;
+    // const captain = response.data;
 
     if (!captain) {
       return res.status(401).json({ message: "Unauthorized" });
