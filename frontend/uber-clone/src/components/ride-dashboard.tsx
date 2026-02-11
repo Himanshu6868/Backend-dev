@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiRequest, apiRoutes } from "@/lib/api";
+import { ApiError, apiRequest, apiRoutes } from "@/lib/api";
 import { clearSessionRole, getStoredRole, Role } from "@/lib/auth";
 
 type RideOffer = {
@@ -55,6 +55,18 @@ const rideTypes = [
     time: "6 min",
   },
 ];
+
+
+const POLL_INTERVAL_MS = 3000;
+const THROTTLED_POLL_INTERVAL_MS = 15000;
+
+function getPollDelay(error?: unknown) {
+  if (error instanceof ApiError && error.status === 429) {
+    return THROTTLED_POLL_INTERVAL_MS;
+  }
+
+  return POLL_INTERVAL_MS;
+}
 
 export default function RideDashboard({ role }: { role: Role }) {
   const router = useRouter();
@@ -134,7 +146,7 @@ export default function RideDashboard({ role }: { role: Role }) {
         setCaptainStatus(error instanceof Error ? error.message : "Unable to fetch new rides");
       } finally {
         if (isActive) {
-          setTimeout(pollForNewRide, 1000);
+          setTimeout(pollForNewRide, getPollDelay(error));
         }
       }
     };
@@ -167,7 +179,7 @@ export default function RideDashboard({ role }: { role: Role }) {
         setRiderStatus(error instanceof Error ? error.message : "Unable to get ride updates");
       } finally {
         if (isActive) {
-          setTimeout(pollAcceptedRide, 1000);
+          setTimeout(pollAcceptedRide, getPollDelay(error));
         }
       }
     };
@@ -224,6 +236,7 @@ export default function RideDashboard({ role }: { role: Role }) {
     } finally {
       clearSessionRole();
       router.replace("/login");
+      router.refresh();
     }
   };
 

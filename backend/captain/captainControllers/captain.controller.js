@@ -79,7 +79,8 @@ module.exports.login = async (req, res) => {
 
 module.exports.logout = async (req, res) => {
   try {
-    const token = req.cookies.token;
+    const bearerToken = req.headers.authorization?.split(" ")[1];
+    const token = req.cookies.token || bearerToken;
     if (token) {
       await BlacklistedTokenModel.create({ token, createdAt: new Date() });
     }
