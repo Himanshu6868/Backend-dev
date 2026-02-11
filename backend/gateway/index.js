@@ -1,3 +1,4 @@
+const rateLimit = require("express-rate-limit");
 const dotenv = require("dotenv");
 dotenv.config();
 
@@ -33,7 +34,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-const PROXY_TIMEOUT = 60000; // 60 seconds (cold start safe)
+const PROXY_TIMEOUT = 60000; 
 
 const createProxy = (target) =>
   expressProxy(target, {
@@ -53,6 +54,16 @@ const createProxy = (target) =>
       });
     },
   });
+
+  app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1000, // increase
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
+
 
 app.use("/user", createProxy(USERS_URL));
 app.use("/captain", createProxy(CAPTAIN_URL));
