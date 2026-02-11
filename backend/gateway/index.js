@@ -33,9 +33,30 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
 
-app.use("/user", expressProxy(USERS_URL));
-app.use("/captain", expressProxy(CAPTAIN_URL));
-app.use("/ride", expressProxy(RIDE_URL));
+const PROXY_TIMEOUT = 60000; // 60 seconds (cold start safe)
+
+const createProxy = (target) =>
+  expressProxy(target, {
+    timeout: PROXY_TIMEOUT,
+
+    proxyReqOptDecorator: (proxyReqOpts) => {
+      proxyReqOpts.timeout = PROXY_TIMEOUT;
+      return proxyReqOpts;
+    },
+
+    proxyErrorHandler: (err, res, next) => {
+      console.error("Proxy error:", err.message);
+
+      res.status(502).json({
+        message: "Upstream service unavailable",
+        error: err.code || err.message,
+      });
+    },
+  });
+
+app.use("/user", createProxy(USERS_URL));
+app.use("/captain", createProxy(CAPTAIN_URL));
+app.use("/ride", createProxy(RIDE_URL));
 
 const PORT = process.env.PORT || 4000;
 
