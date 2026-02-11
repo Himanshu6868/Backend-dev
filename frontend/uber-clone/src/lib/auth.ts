@@ -8,6 +8,7 @@ export function setSessionRole(role: Role) {
 export function clearSessionRole() {
   localStorage.removeItem("ride-role");
   document.cookie = "ride-role=; path=/; max-age=0; samesite=lax";
+  document.cookie = "token=; path=/; max-age=0; samesite=lax";
 }
 
 export function getStoredRole(): Role | null {

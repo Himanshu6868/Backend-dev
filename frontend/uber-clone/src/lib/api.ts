@@ -5,6 +5,16 @@ type ApiOptions = Omit<RequestInit, "body"> & {
   body?: Record<string, unknown>;
 };
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 function getAuthToken(): string | null {
   if (typeof window === "undefined") return null;
   
@@ -47,7 +57,7 @@ export async function apiRequest<T>(
       typeof payload === "string"
         ? payload
         : payload?.message || "Request failed";
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   return payload as T;
