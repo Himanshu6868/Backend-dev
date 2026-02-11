@@ -63,6 +63,15 @@ app.options(/.*/, cors(corsOptions));
 //   })
 // );
 
+app.get("/healthz", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "gateway",
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+  });
+});
+
 
 app.use("/user", expressProxy(USERS_URL));
 app.use("/captain", expressProxy(CAPTAIN_URL));

@@ -17,6 +17,15 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(cookiesParser());
 
+app.get("/healthz", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "captain-service",
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+  });
+});
+
 app.use("/", captainRoutes);
 
 module.exports = app;

@@ -20,6 +20,15 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(cookiesParser());
 
+app.get("/healthz", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    service: "users-service",
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+  });
+});
+
 app.use("/", userRoutes);
 
 module.exports = app;
