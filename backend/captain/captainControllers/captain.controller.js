@@ -5,6 +5,7 @@ const { subscribeToQueue, publishToQueue } = require("../service/rabbit");
 const jwt = require("jsonwebtoken");
 
 const pendingRequests = [];
+const pendingRides = [];
 
 module.exports.register = async (req, res) => {
   const { name, email, password } = req.body;
@@ -114,9 +115,35 @@ module.exports.toggleAvailability = async (req, res) => {
 };
 
 module.exports.waitForNewRide = async (req, res) => {
+
+  if (pendingRides.length > 0) {
+    return res.json(pendingRides.shift());
+  }
+
+  let responseSent = false;
+
+  const cleanup = () => {
+    const index = pendingRequests.indexOf(res);
+    if (index !== -1) {
+      pendingRequests.splice(index, 1);
+    }
+  };
+
   // Set timeout for long polling (e.g., 30 seconds)
   req.setTimeout(30000, () => {
     res.status(204).end(); // No Content
+    if (!responseSent) {
+      responseSent = true;
+      cleanup();
+      res.status(204).end();
+    }
+  });
+
+  req.on("close", () => {
+    if (!responseSent) {
+      responseSent = true;
+      cleanup();
+    }
   });
 
   // Add the response object to the pendingRequests array
@@ -126,6 +153,11 @@ module.exports.waitForNewRide = async (req, res) => {
 subscribeToQueue("new-ride", (data) => {
   // console.log("New ride data received:", data);
   const rideData = JSON.parse(data);
+
+  if (pendingRequests.length === 0) {
+    pendingRides.push(rideData);
+    return;
+  }
 
   pendingRequests.forEach((res) => {
     res.json(rideData);
