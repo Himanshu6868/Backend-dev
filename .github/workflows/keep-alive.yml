@@ -1,0 +1,27 @@
+name: Keep Render Services Alive
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # every 5 minutes
+  workflow_dispatch:        # allow manual run
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Gateway
+        run: |
+          curl -f https://gateway-7n9a.onrender.com/healthz
+
+      - name: Ping Users
+        run: |
+          curl -f https://backend-dev-dwi6.onrender.com/healthz
+
+      - name: Ping Captain
+        run: |
+          curl -f https://captain-service.onrender.com/healthz
+
+      - name: Ping Ride
+        run: |
+          curl -f https://ride-service-oxfj.onrender.com/healthz
