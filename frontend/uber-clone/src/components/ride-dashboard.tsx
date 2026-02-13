@@ -310,19 +310,21 @@ export default function RideDashboard({ role }: { role: Role }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
-        <header className="flex flex-col gap-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            {role === "rider" ? "Rider dashboard" : "Captain dashboard"}
-          </p>
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="text-4xl font-semibold">
-              {role === "rider" ? "Book your ride" : "Manage ride requests"}
+        <header className="flex items-center justify-between border-b pb-6">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground">
+              {role === "rider" ? "Rider Dashboard" : "Captain Dashboard"}
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold">
+              {role === "rider" ? "Book a Ride" : "Manage Requests"}
             </h1>
-            <Button variant="outline" onClick={handleLogout}>
-              Logout
-            </Button>
           </div>
+
+          <Button variant="ghost" onClick={handleLogout}>
+            Logout
+          </Button>
         </header>
+
 
         {role === "rider" ? (
           <Card>
@@ -339,34 +341,57 @@ export default function RideDashboard({ role }: { role: Role }) {
                   <Label htmlFor="destination">Destination</Label>
                   <Input id="destination" name="destination" placeholder="MG Road, Bangalore" required />
                 </div>
-                {rideTypes.map((ride) => (
-                  <button
-                    key={ride.id}
-                    type="button"
-                    onClick={() => setSelectedRide(ride)}
-                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left text-sm transition ${
-                      selectedRide.id === ride.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-foreground hover:bg-accent"
-                    }`}
-                  >
-                    <span>{ride.title}</span>
-                    <span>{ride.price}</span>
-                  </button>
-                ))}
-                <Button type="submit" className="w-full" disabled={loadingRide}>
+                <div className="space-y-3">
+                  {rideTypes.map((ride) => {
+                    const isSelected = selectedRide.id === ride.id;
+
+                    return (
+                      <button
+                        key={ride.id}
+                        type="button"
+                        onClick={() => setSelectedRide(ride)}
+                        className={`w-full rounded-xl border p-4 transition-all duration-150 ${isSelected
+                          ? "border-primary bg-primary/5 shadow-sm"
+                          : "border-border hover:border-primary/50 hover:bg-accent/40"
+                          }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="text-left">
+                            <p className="font-semibold text-base">{ride.title}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {ride.description} • {ride.time} away
+                            </p>
+                          </div>
+
+                          <p className="text-base font-semibold">{ride.price}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="w-full rounded-xl"
+                  disabled={loadingRide}
+                >
                   {loadingRide ? "Requesting ride..." : `Confirm ${selectedRide.title}`}
                 </Button>
+
               </form>
 
               {rideRequest ? (
                 <div className="rounded-2xl border border-border p-4">
                   <p className="font-semibold">{rideRequest.pickup} → {rideRequest.destination}</p>
                   {rideRequest.status === "accepted" ? (
-                    <div className="mt-3 space-y-3">
-                      <p className="text-sm font-semibold text-green-600">Your ride is accepted ✅</p>
-                      <p className="text-sm text-muted-foreground">Captain is heading to your pickup point.</p>
+                    <div className="rounded-xl border border-dashed border-border bg-muted/40 p-8 text-center">
+                      <p className="font-semibold">No ride requests</p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Stay online. New ride requests will appear automatically.
+                      </p>
                     </div>
+
                   ) : (
                     <p className="mt-3 text-sm text-muted-foreground">Current status: {rideRequest.status}</p>
                   )}
@@ -385,7 +410,11 @@ export default function RideDashboard({ role }: { role: Role }) {
                 </div>
               ) : null}
 
-              {riderStatus ? <p className="text-sm font-semibold">{riderStatus}</p> : null}
+              {riderStatus && (
+                <div className="rounded-lg bg-muted p-3 text-sm font-medium">
+                  {riderStatus}
+                </div>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -394,35 +423,51 @@ export default function RideDashboard({ role }: { role: Role }) {
               <CardTitle>Nearby ride requests</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {rideOffers.map((ride) => (
-                <div key={ride.id} className="rounded-2xl border border-border bg-card p-4">
-                  <p className="text-base font-semibold">{ride.pickup} → {ride.destination}</p>
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      type="button"
-                      className="w-full"
-                      onClick={() => handleAcceptRide(ride.id, ride.backendId)}
-                      disabled={!ride.backendId || ride.status === "accepted"}
-                    >
-                      {ride.backendId
-                        ? ride.status === "accepted"
-                          ? "Ride accepted"
-                          : "Accept ride"
-                        : "Awaiting live request"}
-                    </Button>
-                    {ride.backendId ? (
+              <div className="space-y-4">
+                {rideOffers.map((ride) => (
+                  <div
+                    key={ride.id}
+                    className="rounded-xl border border-border bg-card p-5 shadow-sm"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-semibold text-base">
+                        {ride.pickup} → {ride.destination}
+                      </p>
+
+                      <p className="text-sm text-muted-foreground">
+                        Rider: {ride.rider}
+                      </p>
+
+                      <p className="text-sm text-muted-foreground">
+                        ETA: {ride.eta} • Fare: {ride.price}
+                      </p>
+                    </div>
+
+                    <div className="mt-4 flex gap-3">
                       <Button
-                        type="button"
-                        variant="destructive"
-                        className="w-full"
-                        onClick={() => handleCaptainCancel(ride.id, ride.backendId)}
+                        className="flex-1"
+                        onClick={() => handleAcceptRide(ride.id, ride.backendId)}
+                        disabled={!ride.backendId}
                       >
-                        Cancel ride
+                        Accept
                       </Button>
-                    ) : null}
+
+                      <Button
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() =>
+                          setRideOffers((prev) =>
+                            prev.filter((r) => r.id !== ride.id)
+                          )
+                        }
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+
               {captainStatus ? <p className="text-sm font-semibold">{captainStatus}</p> : null}
               {acceptedRideId && acceptedRide ? (
                 <p className="text-sm text-muted-foreground">Active ride from {acceptedRide.pickup}</p>
