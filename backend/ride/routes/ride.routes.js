@@ -9,5 +9,15 @@ router.put(
   authMiddleware.captainAuth,
   rideController.acceptRide
 );
+router.put(
+  "/cancel-ride/user",
+  authMiddleware.userAuth,
+  rideController.cancelRideByUser
+);
+router.put(
+  "/cancel-ride/captain",
+  authMiddleware.captainAuth,
+  rideController.cancelRideByCaptain
+);
 
 module.exports = router;

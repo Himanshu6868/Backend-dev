@@ -20,6 +20,13 @@ type RideOffer = {
   status?: string;
 };
 
+type RiderRideState = {
+  id: string;
+  pickup: string;
+  destination: string;
+  status: string;
+};
+
 const fallbackRideOffers: RideOffer[] = [
   {
     id: "ride-1",
@@ -56,7 +63,6 @@ const rideTypes = [
   },
 ];
 
-
 const POLL_INTERVAL_MS = 3000;
 const THROTTLED_POLL_INTERVAL_MS = 15000;
 
@@ -75,8 +81,9 @@ export default function RideDashboard({ role }: { role: Role }) {
   const [acceptedRideId, setAcceptedRideId] = useState<string | null>(null);
   const [captainStatus, setCaptainStatus] = useState<string>("");
   const [rideOffers, setRideOffers] = useState<RideOffer[]>(fallbackRideOffers);
-  const [rideRequestId, setRideRequestId] = useState<string | null>(null);
+  const [rideRequest, setRideRequest] = useState<RiderRideState | null>(null);
   const [loadingRide, setLoadingRide] = useState(false);
+  const [cancelingRide, setCancelingRide] = useState(false);
 
   const acceptedRide = useMemo(
     () => rideOffers.find((ride) => ride.id === acceptedRideId) ?? null,
@@ -167,24 +174,34 @@ export default function RideDashboard({ role }: { role: Role }) {
     let isActive = true;
 
     const pollAcceptedRide = async () => {
-      if (!isActive || !rideRequestId || role !== "rider") {
+      if (!isActive || !rideRequest?.id || role !== "rider") {
         return;
       }
 
       let pollError: unknown;
 
       try {
-        const response = await apiRequest<{ status?: string } | string>(apiRoutes.acceptedRide, {
-          method: "GET",
-        });
+        const response = await apiRequest<{ _id?: string; status?: string }>(
+          `${apiRoutes.acceptedRide}?rideId=${rideRequest.id}`,
+          {
+            method: "GET",
+          }
+        );
+
         if (response && typeof response === "object" && response.status) {
-          setRiderStatus("Ride accepted • Your captain is on the way");
+          setRideRequest((prev) => (prev ? { ...prev, status: response.status ?? prev.status } : prev));
+          if (response.status === "accepted") {
+            setRiderStatus("Ride accepted • Your captain is on the way");
+          }
+          if (response.status === "cancelled") {
+            setRiderStatus("Ride cancelled");
+          }
         }
       } catch (error) {
         pollError = error;
         setRiderStatus(error instanceof Error ? error.message : "Unable to get ride updates");
       } finally {
-        if (isActive) {
+        if (isActive && rideRequest?.status === "requested") {
           setTimeout(pollAcceptedRide, getPollDelay(pollError));
         }
       }
@@ -195,7 +212,7 @@ export default function RideDashboard({ role }: { role: Role }) {
     return () => {
       isActive = false;
     };
-  }, [rideRequestId, role]);
+  }, [rideRequest?.id, rideRequest?.status, role]);
 
   const handleRiderSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -208,14 +225,24 @@ export default function RideDashboard({ role }: { role: Role }) {
     setLoadingRide(true);
     setRiderStatus("Requesting your ride...");
     try {
-      const response = await apiRequest<{ _id?: string; status?: string }>(apiRoutes.createRide, {
+      const response = await apiRequest<{
+        _id?: string;
+        pickup?: string;
+        destination?: string;
+        status?: string;
+      }>(apiRoutes.createRide, {
         method: "POST",
         body: payload,
       });
       if (response && typeof response === "object" && response._id) {
-        setRideRequestId(response._id);
+        setRideRequest({
+          id: response._id,
+          pickup: response.pickup ?? payload.pickup,
+          destination: response.destination ?? payload.destination,
+          status: response.status ?? "requested",
+        });
       }
-      setRiderStatus(`Driver on the way • ${selectedRide.title} arriving in ${selectedRide.time}`);
+      setRiderStatus(`Searching captain • ${selectedRide.title} ETA ${selectedRide.time}`);
     } catch (error) {
       setRiderStatus(error instanceof Error ? error.message : "Ride request failed");
     } finally {
@@ -228,9 +255,43 @@ export default function RideDashboard({ role }: { role: Role }) {
     setCaptainStatus("Accepting ride...");
     try {
       await apiRequest(`${apiRoutes.acceptRide}?rideId=${backendId ?? rideId}`, { method: "PUT" });
+      setRideOffers((prev) =>
+        prev.map((ride) =>
+          ride.id === rideId || ride.backendId === backendId ? { ...ride, status: "accepted" } : ride
+        )
+      );
       setCaptainStatus("Accepted • Navigate to pickup location");
     } catch (error) {
       setCaptainStatus(error instanceof Error ? error.message : "Ride acceptance failed");
+    }
+  };
+
+  const handleRiderCancel = async () => {
+    if (!rideRequest?.id) return;
+    setCancelingRide(true);
+    try {
+      await apiRequest(`${apiRoutes.cancelRideByUser}?rideId=${rideRequest.id}`, { method: "PUT" });
+      setRideRequest((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
+      setRiderStatus("Ride cancelled successfully");
+    } catch (error) {
+      setRiderStatus(error instanceof Error ? error.message : "Unable to cancel ride");
+    } finally {
+      setCancelingRide(false);
+    }
+  };
+
+  const handleCaptainCancel = async (rideId: string, backendId?: string) => {
+    const resolvedRideId = backendId ?? rideId;
+    setCaptainStatus("Cancelling ride...");
+    try {
+      await apiRequest(`${apiRoutes.cancelRideByCaptain}?rideId=${resolvedRideId}`, { method: "PUT" });
+      setRideOffers((prev) => prev.filter((ride) => (ride.backendId ?? ride.id) !== resolvedRideId));
+      if (acceptedRideId === rideId) {
+        setAcceptedRideId(null);
+      }
+      setCaptainStatus("Ride cancelled");
+    } catch (error) {
+      setCaptainStatus(error instanceof Error ? error.message : "Unable to cancel ride");
     }
   };
 
@@ -297,6 +358,33 @@ export default function RideDashboard({ role }: { role: Role }) {
                   {loadingRide ? "Requesting ride..." : `Confirm ${selectedRide.title}`}
                 </Button>
               </form>
+
+              {rideRequest ? (
+                <div className="rounded-2xl border border-border p-4">
+                  <p className="font-semibold">{rideRequest.pickup} → {rideRequest.destination}</p>
+                  {rideRequest.status === "accepted" ? (
+                    <div className="mt-3 space-y-3">
+                      <p className="text-sm font-semibold text-green-600">Your ride is accepted ✅</p>
+                      <p className="text-sm text-muted-foreground">Captain is heading to your pickup point.</p>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-muted-foreground">Current status: {rideRequest.status}</p>
+                  )}
+
+                  {rideRequest.status !== "cancelled" && rideRequest.status !== "completed" ? (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="mt-4 w-full"
+                      onClick={handleRiderCancel}
+                      disabled={cancelingRide}
+                    >
+                      {cancelingRide ? "Cancelling..." : "Cancel ride"}
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+
               {riderStatus ? <p className="text-sm font-semibold">{riderStatus}</p> : null}
             </CardContent>
           </Card>
@@ -309,14 +397,30 @@ export default function RideDashboard({ role }: { role: Role }) {
               {rideOffers.map((ride) => (
                 <div key={ride.id} className="rounded-2xl border border-border bg-card p-4">
                   <p className="text-base font-semibold">{ride.pickup} → {ride.destination}</p>
-                  <Button
-                    type="button"
-                    className="mt-4 w-full"
-                    onClick={() => handleAcceptRide(ride.id, ride.backendId)}
-                    disabled={!ride.backendId}
-                  >
-                    {ride.backendId ? "Accept ride" : "Awaiting live request"}
-                  </Button>
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      type="button"
+                      className="w-full"
+                      onClick={() => handleAcceptRide(ride.id, ride.backendId)}
+                      disabled={!ride.backendId || ride.status === "accepted"}
+                    >
+                      {ride.backendId
+                        ? ride.status === "accepted"
+                          ? "Ride accepted"
+                          : "Accept ride"
+                        : "Awaiting live request"}
+                    </Button>
+                    {ride.backendId ? (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        className="w-full"
+                        onClick={() => handleCaptainCancel(ride.id, ride.backendId)}
+                      >
+                        Cancel ride
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               ))}
               {captainStatus ? <p className="text-sm font-semibold">{captainStatus}</p> : null}
