@@ -23,7 +23,58 @@ module.exports.acceptRide = async (req, res, next) => {
   }
 
   ride.status = "accepted";
+  ride.captain = req.captain._id;
   await ride.save();
+
   publishToQueue("ride-accepted", JSON.stringify(ride));
+  publishToQueue("ride-updated", JSON.stringify(ride));
+
+  res.send(ride);
+};
+
+module.exports.cancelRideByUser = async (req, res, next) => {
+  const { rideId } = req.query;
+  const ride = await rideModel.findById(rideId);
+
+  if (!ride) {
+    return res.status(404).json({ message: "Ride not found" });
+  }
+
+  if (String(ride.user) !== String(req.user._id)) {
+    return res.status(403).json({ message: "You can only cancel your own ride" });
+  }
+
+  if (["completed", "cancelled"].includes(ride.status)) {
+    return res.status(400).json({ message: `Ride is already ${ride.status}` });
+  }
+
+  ride.status = "cancelled";
+  await ride.save();
+  publishToQueue("ride-updated", JSON.stringify(ride));
+
+  res.send(ride);
+};
+
+module.exports.cancelRideByCaptain = async (req, res, next) => {
+  const { rideId } = req.query;
+  const ride = await rideModel.findById(rideId);
+
+  if (!ride) {
+    return res.status(404).json({ message: "Ride not found" });
+  }
+
+  if (ride.captain && String(ride.captain) !== String(req.captain._id)) {
+    return res.status(403).json({ message: "This ride is assigned to another captain" });
+  }
+
+  if (["completed", "cancelled"].includes(ride.status)) {
+    return res.status(400).json({ message: `Ride is already ${ride.status}` });
+  }
+
+  ride.captain = req.captain._id;
+  ride.status = "cancelled";
+  await ride.save();
+  publishToQueue("ride-updated", JSON.stringify(ride));
+
   res.send(ride);
 };

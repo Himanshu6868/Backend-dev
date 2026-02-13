@@ -77,4 +77,6 @@ export const apiRoutes = {
   newRide: "/captain/new-ride",
   createRide: "/ride/create-ride",
   acceptRide: "/ride/accept-ride",
+  cancelRideByUser: "/ride/cancel-ride/user",
+  cancelRideByCaptain: "/ride/cancel-ride/captain",
 };

@@ -4,29 +4,67 @@ const BlacklistedTokenModel = require("../models/blacklisted.model");
 const jwt = require("jsonwebtoken");
 const { subscribeToQueue } = require("../service/rabbit");
 const EventEmitter = require("events");
+
 const rideEventEmitter = new EventEmitter();
-rideEventEmitter.setMaxListeners(50);
+rideEventEmitter.setMaxListeners(100);
+
+const rideUpdateBuffer = new Map();
+
+const getRideKey = ({ userId, rideId }) => `${String(userId)}:${String(rideId)}`;
+
+const storeRideUpdate = (rideData) => {
+  if (!rideData?.user || !rideData?._id) {
+    return;
+  }
+
+  const key = getRideKey({ userId: rideData.user, rideId: rideData._id });
+  rideUpdateBuffer.set(key, rideData);
+};
+
+const getAndClearRideUpdate = ({ userId, rideId }) => {
+  const key = getRideKey({ userId, rideId });
+  const cachedRide = rideUpdateBuffer.get(key);
+
+  if (cachedRide) {
+    rideUpdateBuffer.delete(key);
+  }
+
+  return cachedRide;
+};
+
+subscribeToQueue("ride-updated", (data) => {
+  try {
+    const rideData = JSON.parse(data);
+
+    if (!["accepted", "cancelled"].includes(rideData?.status)) {
+      return;
+    }
+
+    storeRideUpdate(rideData);
+
+    const eventName = getRideKey({ userId: rideData.user, rideId: rideData._id });
+    rideEventEmitter.emit(eventName, rideData);
+  } catch (error) {
+    console.error("Failed to process ride-updated message", error);
+  }
+});
 
 module.exports.register = async (req, res) => {
   const { name, email, password } = req.body;
 
   try {
-    // Check if user already exists
     const existingUser = await UserModel.findOne({ email });
 
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
-    // Create a new user
     const newUser = new UserModel({
       name,
       email,
       password: hashedPassword,
     });
-    // Save the user to the database
     await newUser.save();
     const token = jwt.sign({ userId: newUser._id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
@@ -46,28 +84,23 @@ module.exports.login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Find the user by email
     const user = await UserModel.findOne({ email });
 
     if (!user) {
       return res.status(401).json({ message: "Invalid User Id" });
     }
 
-    // Compare the provided password with the hashed password in the database
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
       return res.status(401).json({ message: "Invalid Password" });
     }
-    // Generate a JWT token
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
     res.cookie("token", token);
     res.cookie("ride-role", "rider");
     res.send({ token, user });
-
-    // res.status(200).json({ message: "Login successful" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
@@ -100,10 +133,22 @@ module.exports.profile = async (req, res) => {
 };
 
 module.exports.acceptedRide = async (req, res) => {
-  // Flag to prevent multiple responses
-  let responseSent = false;
+  const { rideId } = req.query;
 
-  // Handler function for ride-accepted event
+  if (!rideId) {
+    return res.status(400).json({ message: "rideId query parameter is required" });
+  }
+
+  const userId = req.user._id;
+  const cachedRide = getAndClearRideUpdate({ userId, rideId });
+
+  if (cachedRide) {
+    return res.send(cachedRide);
+  }
+
+  let responseSent = false;
+  const eventName = getRideKey({ userId, rideId });
+
   const rideAcceptedHandler = (data) => {
     if (!responseSent) {
       responseSent = true;
@@ -112,24 +157,21 @@ module.exports.acceptedRide = async (req, res) => {
     }
   };
 
-  // Long polling: wait for 'ride-accepted' event
-  rideEventEmitter.once("ride-accepted", rideAcceptedHandler);
+  rideEventEmitter.once(eventName, rideAcceptedHandler);
 
-  // Set timeout for long polling (e.g., 30 seconds)
   const timeoutId = setTimeout(() => {
     if (!responseSent) {
       responseSent = true;
-      rideEventEmitter.removeListener("ride-accepted", rideAcceptedHandler);
+      rideEventEmitter.removeListener(eventName, rideAcceptedHandler);
       res.status(204).send();
     }
   }, 30000);
 
-  // Clean up on client disconnect
-  req.on('close', () => {
+  req.on("close", () => {
     if (!responseSent) {
       responseSent = true;
       clearTimeout(timeoutId);
-      rideEventEmitter.removeListener("ride-accepted", rideAcceptedHandler);
+      rideEventEmitter.removeListener(eventName, rideAcceptedHandler);
     }
   });
 };
