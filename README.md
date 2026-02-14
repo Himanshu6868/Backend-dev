@@ -292,19 +292,4 @@ Render free-tier services can spin down during inactivity. A scheduled GitHub Ac
 - Monitoring and observability stack
 - Container orchestration (Kubernetes)
 
-## Contributing
 
-Contributions are welcome. Suggested process:
-
-1. Fork the repository.
-2. Create a feature branch.
-3. Make focused changes with clear commits.
-4. Open a pull request describing the motivation and impact.
-
-## License
-
-This project is currently distributed under the **MIT License** (update if your repository uses a different license).
-
-## Contact
-
-For questions, architecture discussion, or collaboration, open an issue in this repository.
