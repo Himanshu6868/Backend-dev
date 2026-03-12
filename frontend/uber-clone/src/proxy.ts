@@ -18,10 +18,11 @@ export function proxy(request: NextRequest) {
   const isPublic = PUBLIC_ROUTES.includes(pathname);
   const destination = role === "captain" ? "/captain" : "/ride";
 
-
+  // All non-public routes (including /home) require authentication.
   if (!token && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
+
   if (token && (isPublic || pathname === "/")) {
     return NextResponse.redirect(new URL(destination, request.url));
   }
