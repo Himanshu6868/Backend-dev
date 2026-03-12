@@ -1,295 +1,266 @@
-# Ride Booking Backend System
+# RideFlow — Full-Stack Ride Booking Platform
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Architecture: Microservices](https://img.shields.io/badge/Architecture-Microservices-blue)
+![Backend: Node.js + Express](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-43853d)
+![Frontend: Next.js](https://img.shields.io/badge/Frontend-Next.js-black)
 ![Messaging: RabbitMQ](https://img.shields.io/badge/Messaging-RabbitMQ-ff6600)
+![Database: MongoDB](https://img.shields.io/badge/Database-MongoDB-47A248)
 
-A backend-centric ride booking platform built with a **microservices architecture**. The system is designed to be scalable, secure, and production-ready using **Node.js services**, **RabbitMQ (CloudAMQP)** for event-driven communication, and cloud deployment across **Render** and **Vercel**.
+Production-style **ride-booking platform** built with a **microservices backend** and a modern **Next.js frontend**.  
+The system separates domain responsibilities across services, routes all client traffic through a gateway, and uses RabbitMQ events for cross-service ride updates.
 
 ---
 
 ## Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Architecture](#architecture)
-  - [Architectural Patterns](#architectural-patterns)
-  - [High-Level Flow](#high-level-flow)
-  - [Service Boundaries](#service-boundaries)
-- [Detailed Flows](#detailed-flows)
-  - [User Authentication Flow](#user-authentication-flow)
-  - [Ride Creation Flow](#ride-creation-flow)
-  - [Captain Acceptance Flow](#captain-acceptance-flow)
+- [What This Project Includes](#what-this-project-includes)
+- [Current Implementation Status](#current-implementation-status)
+- [Architecture Overview](#architecture-overview)
+- [Service Responsibilities](#service-responsibilities)
+- [Implemented API Endpoints](#implemented-api-endpoints)
+- [Event-Driven Flows (RabbitMQ)](#event-driven-flows-rabbitmq)
 - [Tech Stack](#tech-stack)
-- [Requirements](#requirements)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [API Reference](#api-reference)
-  - [User APIs](#user-apis)
-  - [Captain APIs](#captain-apis)
-  - [Ride APIs](#ride-apis)
-- [Deployment](#deployment)
-  - [Backend on Render](#backend-on-render)
-  - [Frontend on Vercel](#frontend-on-vercel)
-  - [Service Keep-Alive via GitHub Actions](#service-keep-alive-via-github-actions)
-- [Engineering Challenges Solved](#engineering-challenges-solved)
-- [Engineering Highlights](#engineering-highlights)
-- [Future Improvements](#future-improvements)
-- [Contributing](#contributing)
+- [Monorepo Structure](#monorepo-structure)
+- [Environment Variables](#environment-variables)
+- [Run Locally](#run-locally)
+- [Deployment Notes](#deployment-notes)
+- [Known Gaps / Suggested Next Improvements](#known-gaps--suggested-next-improvements)
 - [License](#license)
-- [Contact](#contact)
 
 ---
 
-## Overview
+## What This Project Includes
 
-This project demonstrates distributed system design principles in a ride booking domain:
+### Backend (Microservices)
+- **Gateway Service** (`backend/gateway`) as the only public backend entry point.
+- **Users Service** (`backend/users`) for rider auth/profile and accepted-ride polling.
+- **Captain Service** (`backend/captain`) for captain auth/profile, availability toggling, and new-ride long polling.
+- **Ride Service** (`backend/ride`) for creating, accepting, and cancelling rides.
+- **RabbitMQ integration** for ride lifecycle messaging between services.
 
-- Clean separation of services through an API Gateway pattern.
-- Event-driven service communication through RabbitMQ.
-- JWT-based authentication and session handling.
-- Cloud deployment with production-focused operational practices.
+### Frontend (Next.js)
+- Role-based auth UI (rider/captain registration + login).
+- Rider dashboard to request and cancel rides.
+- Captain dashboard to receive and accept/cancel ride offers.
+- Session role handling (`ride-role`) for route and dashboard flow control.
 
-Only the **Gateway Service** is publicly exposed; internal services are isolated and accessed through controlled routing and queues.
+---
 
-## Features
+## Current Implementation Status
 
-- API Gateway as a single public entry point.
-- Dedicated services for **Users**, **Captain**, and **Ride** domains.
-- Event-driven ride updates using RabbitMQ (CloudAMQP).
-- Stateless service design with environment-based configuration.
-- JWT auth with HTTP-only cookies.
-- Service health monitoring and keep-alive automation.
+Implemented and working in codebase:
 
-## Architecture
+- ✅ API Gateway proxy routing for `/user`, `/captain`, and `/ride`.
+- ✅ JWT + cookie-based authentication in user/captain services.
+- ✅ Token blacklisting on logout (user and captain).
+- ✅ Ride creation from rider side.
+- ✅ Captain-side long polling for new rides (`/captain/new-ride`).
+- ✅ Rider-side long polling for accepted/cancelled updates (`/user/accepted-ride`).
+- ✅ Ride accept flow with queue events (`ride-accepted`, `ride-updated`).
+- ✅ Rider and captain cancellation flows.
+- ✅ Basic health endpoints in all services (`/healthz`).
+- ✅ Frontend pages for home, register, login, rider dashboard, captain dashboard.
 
-### Architectural Patterns
+---
 
-- API Gateway Pattern
-- Microservices Architecture
-- Event-Driven Communication (RabbitMQ)
-- Stateless Services
-- Environment-based Configuration
-
-### High-Level Flow
+## Architecture Overview
 
 ```text
-Client (Frontend - Vercel)
-        ↓
-Gateway Service (Render - Public)
-        ↓
----------------------------------
-| Users | Captain | Ride Service |
----------------------------------
-        ↓
-RabbitMQ (CloudAMQP)
+Next.js Frontend (Vercel / Local)
+            |
+            v
+     Gateway Service (Public)
+            |
+  -------------------------------
+  | Users | Captain | Ride Svc |
+  -------------------------------
+            |
+            v
+      RabbitMQ (CloudAMQP)
+            |
+            v
+          MongoDB
 ```
 
-### Service Boundaries
+### Request Flow
+1. Frontend calls **Gateway**.
+2. Gateway proxies request to the target domain service.
+3. Services authenticate using JWT tokens from cookies/bearer headers.
+4. Ride-related events are published/subscribed through RabbitMQ queues.
 
-| Service | Responsibilities |
-|---|---|
-| Gateway Service | Public API entry point, route forwarding, CORS handling, timeout/retry strategy, centralized error handling, security headers |
-| Users Service | User registration/login, JWT generation, authentication middleware, ride creation initiation |
-| Captain Service | Captain registration/login, availability toggling, ride acceptance, ride state transitions |
-| Ride Service | Ride creation, lifecycle management, state transitions, event publishing to RabbitMQ |
+---
 
-**Ride lifecycle:** `pending → accepted → ongoing → completed`
+## Service Responsibilities
 
-## Detailed Flows
+| Service | Port (default) | Responsibility |
+|---|---:|---|
+| Gateway | `4000` | Public entry point, CORS, route proxying to internal services |
+| Users | `3001` | Rider registration/login/logout/profile, accepted-ride long polling |
+| Captain | `3002` | Captain registration/login/logout/profile, availability, new-ride polling |
+| Ride | `3003` | Ride creation, accept, cancel-by-user, cancel-by-captain |
 
-### User Authentication Flow
+---
 
-1. User submits credentials.
-2. Users Service validates credentials.
-3. JWT token is generated.
-4. Token is stored in an HTTP-only cookie.
-5. Middleware validates protected requests.
+## Implemented API Endpoints
 
-### Ride Creation Flow
+> All endpoints below are consumed through the gateway base URL.
 
-1. Authenticated user sends `POST /ride/create`.
-2. Ride Service validates input.
-3. Ride is stored with `pending` status.
-4. Ride event is published to RabbitMQ.
+### User Routes
+- `POST /user/register`
+- `POST /user/login`
+- `GET /user/logout`
+- `GET /user/profile` *(auth required)*
+- `GET /user/accepted-ride?rideId=<id>` *(auth required, long-poll style)*
 
-### Captain Acceptance Flow
+### Captain Routes
+- `POST /captain/register`
+- `POST /captain/login`
+- `GET /captain/logout`
+- `GET /captain/profile` *(auth required)*
+- `PATCH /captain/toggle-availability` *(auth required)*
+- `GET /captain/new-ride` *(auth required, long-poll style)*
 
-1. Captain Service consumes ride event.
-2. Available captains are notified.
-3. A captain accepts the ride.
-4. Ride Service updates status to `accepted`.
-5. Follow-up events are published for downstream updates.
+### Ride Routes
+- `POST /ride/create-ride` *(rider auth required)*
+- `PUT /ride/accept-ride?rideId=<id>` *(captain auth required)*
+- `PUT /ride/cancel-ride/user?rideId=<id>` *(rider auth required)*
+- `PUT /ride/cancel-ride/captain?rideId=<id>` *(captain auth required)*
+
+### Health Routes
+- `GET /healthz` in gateway and each internal service.
+
+---
+
+## Event-Driven Flows (RabbitMQ)
+
+Current queues in use:
+
+- `new-ride`
+  - Published by Ride Service when a rider creates a ride.
+  - Consumed by Captain Service to push offers to waiting captains.
+
+- `ride-updated`
+  - Published by Ride Service when a ride is accepted/cancelled.
+  - Consumed by Users Service to notify rider polling endpoint.
+
+- `ride-accepted`
+  - Published on acceptance (available for additional consumers / future workflows).
+
+---
 
 ## Tech Stack
 
-- **Runtime:** Node.js
-- **Architecture:** Microservices with API Gateway
-- **Messaging:** RabbitMQ (CloudAMQP)
-- **Auth:** JWT + HTTP-only cookies
-- **Deployment:** Render (backend), Vercel (frontend)
-- **Automation:** GitHub Actions (scheduled keep-alive)
+- **Backend:** Node.js, Express, Mongoose, JWT, cookie-parser
+- **Messaging:** amqplib / RabbitMQ (CloudAMQP compatible)
+- **Frontend:** Next.js (App Router), React, TypeScript, Tailwind CSS
+- **Infrastructure:** Render (backend deployment), Vercel (frontend deployment)
 
-## Requirements
+---
 
-- Node.js 18+ (recommended)
-- npm 9+ (or equivalent package manager)
-- RabbitMQ instance (CloudAMQP or self-hosted)
-- Database connection URL for each service
-- Render account (for backend deployment)
-- Vercel account (for frontend deployment)
-
-## Installation
-
-> Clone and install dependencies for each service and frontend.
+## Monorepo Structure
 
 ```bash
-git clone <your-repo-url>
-cd Backend-dev
+Backend-dev/
+├── backend/
+│   ├── gateway/
+│   ├── users/
+│   ├── captain/
+│   └── ride/
+├── frontend/
+│   └── uber-clone/
+└── README.md
+```
 
-# Backend services
+---
+
+## Environment Variables
+
+Create `.env` files for each backend service.
+
+### Gateway (`backend/gateway/.env`)
+```env
+PORT=4000
+FRONTEND_ORIGIN=http://localhost:3000
+USERS_URL=http://localhost:3001
+CAPTAIN_URL=http://localhost:3002
+RIDE_URL=http://localhost:3003
+```
+
+### Users / Captain / Ride services
+```env
+PORT=<service_port>
+MONGO_URI=<mongodb_connection_string>
+JWT_SECRET=<jwt_secret>
+RABBIT_URL=<amqp_connection_string>
+```
+
+### Frontend (`frontend/uber-clone/.env.local`)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+---
+
+## Run Locally
+
+### 1) Install dependencies
+
+```bash
+# backend services
 cd backend/gateway && npm install
 cd ../users && npm install
 cd ../captain && npm install
 cd ../ride && npm install
 
-# Frontend (optional, if running full stack)
+# frontend
 cd ../../frontend/uber-clone && npm install
 ```
 
-## Configuration
-
-Set environment variables per service.
+### 2) Start backend services (separate terminals)
 
 ```bash
-# Shared backend variables (example)
-JWT_SECRET=<your_jwt_secret>
-RABBITMQ_URL=amqps://...
-DATABASE_URL=<your_database_url>
-
-# Service/routing variables
-SERVICE_URLS=<internal_service_routes>
-PORT=<auto-injected-on-render-or-local-port>
-
-# Frontend variable
-NEXT_PUBLIC_API_URL=https://gateway.onrender.com
+cd backend/gateway && npm start
+cd backend/users && npm start
+cd backend/captain && npm start
+cd backend/ride && npm start
 ```
 
-## Usage
-
-Start each backend service in separate terminals/sessions.
+### 3) Start frontend
 
 ```bash
-# Gateway
-cd backend/gateway
-node index.js
-
-# Users service
-cd backend/users
-node server.js
-
-# Captain service
-cd backend/captain
-node server.js
-
-# Ride service
-cd backend/ride
-node server.js
-
-# Frontend (optional)
 cd frontend/uber-clone
 npm run dev
 ```
 
-## API Reference
+Frontend will run on `http://localhost:3000`.
 
-### User APIs
+---
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/user/register` | Create a new user |
-| POST | `/user/login` | Authenticate user and issue JWT |
-| GET | `/user/profile` | Get profile (protected) |
+## Deployment Notes
 
-### Captain APIs
+- Deploy each backend service independently on Render.
+- Expose only the Gateway publicly.
+- Configure frontend to call Gateway URL via `NEXT_PUBLIC_API_URL`.
+- Use a managed RabbitMQ (e.g., CloudAMQP) and MongoDB URI per environment.
+- Keep `/healthz` endpoints for uptime checks and monitoring.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/captain/register` | Register captain |
-| POST | `/captain/login` | Authenticate captain |
-| PATCH | `/captain/status` | Toggle captain availability |
+---
 
-### Ride APIs
+## Known Gaps / Suggested Next Improvements
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/ride/create` | Create ride (user) |
-| GET | `/ride/:id` | Fetch ride details |
-| PATCH | `/ride/accept` | Captain accepts ride |
-| PATCH | `/ride/complete` | Mark ride as completed |
+To make the project even more production-ready:
 
-## Deployment
+1. Add API documentation (OpenAPI/Swagger).
+2. Add unified error-handling middleware and request validation.
+3. Add test suites (unit + integration + e2e).
+4. Add Docker + docker-compose for one-command local setup.
+5. Add centralized logging + observability (e.g., Winston + OpenTelemetry).
+6. Add role-based authorization guards at gateway level.
+7. Add rate limiting and circuit breaker policies at gateway.
+8. Add idempotency + dead-letter queue strategy for message reliability.
 
-### Backend on Render
+---
 
-Each microservice is deployed independently:
+## License
 
-- Gateway (public)
-- Users Service
-- Captain Service
-- Ride Service
-
-Production considerations:
-
-- Use `process.env.PORT`.
-- Avoid hardcoded secrets.
-- Pin Node.js version.
-- Configure proxy timeout/retry handling.
-- Handle cold-start scenarios gracefully.
-
-### Frontend on Vercel
-
-Frontend communicates only with the Gateway service.
-
-```bash
-NEXT_PUBLIC_API_URL=https://gateway.onrender.com
-```
-
-### Service Keep-Alive via GitHub Actions
-
-Render free-tier services can spin down during inactivity. A scheduled GitHub Actions workflow can call `/health` endpoints every 10 minutes.
-
-```cron
-*/10 * * * *
-```
-
-## Engineering Challenges Solved
-
-- CORS misconfiguration debugging
-- Render port binding issues
-- 502 errors from cold starts
-- Proxy timeout handling
-- Microservice communication debugging
-- Scheduled service keep-alive automation
-
-## Engineering Highlights
-
-- Clear service separation
-- Event-driven communication model
-- Secure JWT authentication flow
-- Production deployment best practices
-- Infrastructure-level debugging
-- Environment-driven configuration
-- Gateway-based request orchestration
-
-## Future Improvements
-
-- Redis caching layer
-- WebSocket-based real-time notifications
-- Circuit breaker implementation
-- Centralized logging
-- Monitoring and observability stack
-- Container orchestration (Kubernetes)
-
-
+This project is licensed under the MIT License.
