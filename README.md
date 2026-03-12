@@ -261,6 +261,3 @@ To make the project even more production-ready:
 
 ---
 
-## License
-
-This project is licensed under the MIT License.
