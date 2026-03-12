@@ -1,21 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { Bike, CarTaxiFront, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { apiRequest, apiRoutes } from "@/lib/api";
 import { setSessionRole } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 type Role = "rider" | "captain";
 
@@ -45,18 +39,16 @@ export function CardDemo() {
           body: payload,
         }
       );
-      
+
       const { token } = response as { token: string };
 
       if (!token) {
         throw new Error("Authentication token missing");
       }
-      // Persist auth
-   document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`;
 
+      document.cookie = `token=${token}; path=/; max-age=${7 * 24 * 60 * 60}; samesite=lax`;
       setSessionRole(role);
       setStatus(`Logged in successfully as ${role}.`);
-
       router.push(role === "rider" ? "/ride" : "/captain");
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Login failed");
@@ -66,81 +58,55 @@ export function CardDemo() {
   };
 
   return (
-    <Card className="w-full max-w-lg">
-      <CardHeader>
-        <CardTitle>Login to your account</CardTitle>
-        <CardDescription>
-          Choose your role to unlock the rider or captain experience.
-        </CardDescription>
-        <CardAction>
-          <Button variant="link" asChild>
-            <a href="/register">Sign Up</a>
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
-        <CardContent>
-          <div className="flex flex-col gap-6">
-            <div className="grid gap-3">
-              <Label>Select role</Label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {(["rider", "captain"] as Role[]).map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setRole(item)}
-                    className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${role === item
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-foreground hover:bg-accent"
-                      }`}
-                  >
-                    <p className="text-xs uppercase tracking-[0.2em] opacity-70">
-                      {item === "rider" ? "Rider" : "Captain"}
-                    </p>
-                    <p className="mt-1 text-base">
-                      {item === "rider"
-                        ? "Book rides faster"
-                        : "Accept nearby trips"}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="m@example.com"
-                required
-              />
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center">
-                <Label htmlFor="password">Password</Label>
-                <a
-                  href="#"
-                  className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
-                >
-                  Forgot your password?
-                </a>
-              </div>
-              <Input id="password" name="password" type="password" required />
-            </div>
-          </div>
-        </CardContent>
+    <Card className="w-full max-w-lg bg-white/90">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold">Welcome back</h2>
+          <p className="text-sm text-black/60">Choose your role and continue your trip workflow.</p>
+        </div>
 
-        <CardFooter className="flex-col gap-3">
-          <Button type="submit" className="w-full">
-            {isSubmitting ? "Logging in..." : `Log in as ${role}`}
-          </Button>
-          {status ? (
-            <div className="w-full rounded-xl border border-border bg-muted/60 p-4 text-sm text-foreground">
-              <p className="font-semibold">{status}</p>
-            </div>
-          ) : null}
-        </CardFooter>
+        <div className="grid gap-3 sm:grid-cols-2" role="tablist" aria-label="Select role">
+          {(["rider", "captain"] as Role[]).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => setRole(item)}
+              className={`rounded-xl border p-4 text-left transition-all duration-200 ${
+                role === item
+                  ? "border-[#6366f1] bg-indigo-50 shadow-sm"
+                  : "border-black/10 bg-white hover:-translate-y-0.5"
+              }`}
+            >
+              <div className="mb-2 inline-flex rounded-lg bg-black/5 p-2">
+                {item === "rider" ? <Bike className="h-4 w-4" /> : <CarTaxiFront className="h-4 w-4" />}
+              </div>
+              <p className="text-sm font-semibold capitalize">{item}</p>
+            </button>
+          ))}
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input id="email" name="email" type="email" placeholder="m@example.com" required className="focus-visible:ring-2 focus-visible:ring-[#6366f1]/40" />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="password">Password</Label>
+          <Input id="password" name="password" type="password" required className="focus-visible:ring-2 focus-visible:ring-[#6366f1]/40" />
+        </div>
+
+        <Button type="submit" className="w-full" loading={isSubmitting} icon={<ShieldCheck className="h-4 w-4" />}>
+          {isSubmitting ? "Authenticating..." : `Log in as ${role}`}
+        </Button>
+
+        {status ? (
+          <div className="rounded-xl border border-black/10 bg-[#fafafa] p-4 text-sm">
+            <StatusBadge label={status} tone={status.toLowerCase().includes("failed") ? "danger" : "info"} />
+          </div>
+        ) : null}
+
+        <p className="text-center text-sm text-black/60">
+          New here? <a href="/register" className="font-semibold text-[#6366f1]">Create account</a>
+        </p>
       </form>
     </Card>
   );

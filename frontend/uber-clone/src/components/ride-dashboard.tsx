@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, Clock3, LogOut, MapPinned, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ApiError, apiRequest, apiRoutes } from "@/lib/api";
 import { clearSessionRole, getStoredRole, Role } from "@/lib/auth";
 
@@ -27,50 +29,16 @@ type RiderRideState = {
   status: string;
 };
 
-// const fallbackRideOffers: RideOffer[] = [
-//   {
-//     id: "ride-1",
-//     rider: "Aarav",
-//     pickup: "Koramangala 4th Block",
-//     destination: "Indiranagar Metro",
-//     price: "₹182",
-//     eta: "2 mins",
-//   },
-//   {
-//     id: "ride-2",
-//     rider: "Meera",
-//     pickup: "UB City",
-//     destination: "MG Road",
-//     price: "₹146",
-//     eta: "4 mins",
-//   },
-// ];
-
 const rideTypes = [
-  {
-    id: "uberx",
-    title: "UberX",
-    description: "Everyday rides, 4 seats",
-    price: "₹148",
-    time: "4 min",
-  },
-  {
-    id: "comfort",
-    title: "Comfort",
-    description: "Newer cars, extra legroom",
-    price: "₹192",
-    time: "6 min",
-  },
+  { id: "uberx", title: "UberX", description: "Everyday rides, 4 seats", price: "₹148", time: "4 min" },
+  { id: "comfort", title: "Comfort", description: "Newer cars, extra legroom", price: "₹192", time: "6 min" },
 ];
 
 const POLL_INTERVAL_MS = 3000;
 const THROTTLED_POLL_INTERVAL_MS = 15000;
 
 function getPollDelay(error?: unknown) {
-  if (error instanceof ApiError && error.status === 429) {
-    return THROTTLED_POLL_INTERVAL_MS;
-  }
-
+  if (error instanceof ApiError && error.status === 429) return THROTTLED_POLL_INTERVAL_MS;
   return POLL_INTERVAL_MS;
 }
 
@@ -85,10 +53,7 @@ export default function RideDashboard({ role }: { role: Role }) {
   const [loadingRide, setLoadingRide] = useState(false);
   const [cancelingRide, setCancelingRide] = useState(false);
 
-  const acceptedRide = useMemo(
-    () => rideOffers.find((ride) => ride.id === acceptedRideId) ?? null,
-    [acceptedRideId, rideOffers]
-  );
+  const acceptedRide = useMemo(() => rideOffers.find((ride) => ride.id === acceptedRideId) ?? null, [acceptedRideId, rideOffers]);
 
   useEffect(() => {
     const storedRole = getStoredRole();
@@ -96,7 +61,6 @@ export default function RideDashboard({ role }: { role: Role }) {
       router.replace("/login");
       return;
     }
-
     if (storedRole !== role) {
       router.replace(storedRole === "rider" ? "/ride" : "/captain");
       return;
@@ -104,36 +68,22 @@ export default function RideDashboard({ role }: { role: Role }) {
 
     const validateRole = async () => {
       try {
-        await apiRequest(role === "rider" ? apiRoutes.profileUser : apiRoutes.profileCaptain, {
-          method: "GET",
-        });
+        await apiRequest(role === "rider" ? apiRoutes.profileUser : apiRoutes.profileCaptain, { method: "GET" });
       } catch {
         clearSessionRole();
         router.replace("/login");
       }
     };
-
     validateRole();
   }, [role, router]);
 
   useEffect(() => {
     let isActive = true;
-
     const pollForNewRide = async () => {
-      if (!isActive || role !== "captain") {
-        return;
-      }
-
+      if (!isActive || role !== "captain") return;
       let pollError: unknown;
-
       try {
-        const response = await apiRequest<{
-          _id?: string;
-          pickup?: string;
-          destination?: string;
-          status?: string;
-        }>(apiRoutes.newRide, { method: "GET" });
-
+        const response = await apiRequest<{ _id?: string; pickup?: string; destination?: string; status?: string }>(apiRoutes.newRide, { method: "GET" });
         if (response && typeof response === "object" && response._id) {
           const newRide: RideOffer = {
             id: response._id,
@@ -145,26 +95,16 @@ export default function RideDashboard({ role }: { role: Role }) {
             eta: "3 mins",
             status: response.status,
           };
-
-          setRideOffers((prev) => {
-            const exists = prev.some((ride) => ride.backendId === newRide.backendId);
-            return exists ? prev : [newRide, ...prev];
-          });
+          setRideOffers((prev) => (prev.some((ride) => ride.backendId === newRide.backendId) ? prev : [newRide, ...prev]));
         }
       } catch (error) {
         pollError = error;
         setCaptainStatus(error instanceof Error ? error.message : "Unable to fetch new rides");
       } finally {
-        if (isActive) {
-          setTimeout(pollForNewRide, getPollDelay(pollError));
-        }
+        if (isActive) setTimeout(pollForNewRide, getPollDelay(pollError));
       }
     };
-
-    if (role === "captain") {
-      pollForNewRide();
-    }
-
+    if (role === "captain") pollForNewRide();
     return () => {
       isActive = false;
     };
@@ -172,43 +112,24 @@ export default function RideDashboard({ role }: { role: Role }) {
 
   useEffect(() => {
     let isActive = true;
-
     const pollAcceptedRide = async () => {
-      if (!isActive || !rideRequest?.id || role !== "rider") {
-        return;
-      }
-
+      if (!isActive || !rideRequest?.id || role !== "rider") return;
       let pollError: unknown;
-
       try {
-        const response = await apiRequest<{ _id?: string; status?: string }>(
-          `${apiRoutes.acceptedRide}?rideId=${rideRequest.id}`,
-          {
-            method: "GET",
-          }
-        );
-
+        const response = await apiRequest<{ _id?: string; status?: string }>(`${apiRoutes.acceptedRide}?rideId=${rideRequest.id}`, { method: "GET" });
         if (response && typeof response === "object" && response.status) {
           setRideRequest((prev) => (prev ? { ...prev, status: response.status ?? prev.status } : prev));
-          if (response.status === "accepted") {
-            setRiderStatus("Ride accepted • Your captain is on the way");
-          }
-          if (response.status === "cancelled") {
-            setRiderStatus("Ride cancelled");
-          }
+          if (response.status === "accepted") setRiderStatus("Ride accepted • Your captain is on the way");
+          if (response.status === "cancelled") setRiderStatus("Ride cancelled");
         }
       } catch (error) {
         pollError = error;
         setRiderStatus(error instanceof Error ? error.message : "Unable to get ride updates");
       } finally {
-        if (isActive && rideRequest?.status === "requested") {
-          setTimeout(pollAcceptedRide, getPollDelay(pollError));
-        }
+        if (isActive && rideRequest?.status === "requested") setTimeout(pollAcceptedRide, getPollDelay(pollError));
       }
     };
-
     pollAcceptedRide();
-
     return () => {
       isActive = false;
     };
@@ -217,30 +138,13 @@ export default function RideDashboard({ role }: { role: Role }) {
   const handleRiderSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
-    const payload = {
-      pickup: String(formData.get("pickup") ?? ""),
-      destination: String(formData.get("destination") ?? ""),
-    };
-
+    const payload = { pickup: String(formData.get("pickup") ?? ""), destination: String(formData.get("destination") ?? "") };
     setLoadingRide(true);
     setRiderStatus("Requesting your ride...");
     try {
-      const response = await apiRequest<{
-        _id?: string;
-        pickup?: string;
-        destination?: string;
-        status?: string;
-      }>(apiRoutes.createRide, {
-        method: "POST",
-        body: payload,
-      });
+      const response = await apiRequest<{ _id?: string; pickup?: string; destination?: string; status?: string }>(apiRoutes.createRide, { method: "POST", body: payload });
       if (response && typeof response === "object" && response._id) {
-        setRideRequest({
-          id: response._id,
-          pickup: response.pickup ?? payload.pickup,
-          destination: response.destination ?? payload.destination,
-          status: response.status ?? "requested",
-        });
+        setRideRequest({ id: response._id, pickup: response.pickup ?? payload.pickup, destination: response.destination ?? payload.destination, status: response.status ?? "requested" });
       }
       setRiderStatus(`Searching captain • ${selectedRide.title} ETA ${selectedRide.time}`);
     } catch (error) {
@@ -255,11 +159,7 @@ export default function RideDashboard({ role }: { role: Role }) {
     setCaptainStatus("Accepting ride...");
     try {
       await apiRequest(`${apiRoutes.acceptRide}?rideId=${backendId ?? rideId}`, { method: "PUT" });
-      setRideOffers((prev) =>
-        prev.map((ride) =>
-          ride.id === rideId || ride.backendId === backendId ? { ...ride, status: "accepted" } : ride
-        )
-      );
+      setRideOffers((prev) => prev.map((ride) => (ride.id === rideId || ride.backendId === backendId ? { ...ride, status: "accepted" } : ride)));
       setCaptainStatus("Accepted • Navigate to pickup location");
     } catch (error) {
       setCaptainStatus(error instanceof Error ? error.message : "Ride acceptance failed");
@@ -286,9 +186,7 @@ export default function RideDashboard({ role }: { role: Role }) {
     try {
       await apiRequest(`${apiRoutes.cancelRideByCaptain}?rideId=${resolvedRideId}`, { method: "PUT" });
       setRideOffers((prev) => prev.filter((ride) => (ride.backendId ?? ride.id) !== resolvedRideId));
-      if (acceptedRideId === rideId) {
-        setAcceptedRideId(null);
-      }
+      if (acceptedRideId === rideId) setAcceptedRideId(null);
       setCaptainStatus("Ride cancelled");
     } catch (error) {
       setCaptainStatus(error instanceof Error ? error.message : "Unable to cancel ride");
@@ -297,9 +195,7 @@ export default function RideDashboard({ role }: { role: Role }) {
 
   const handleLogout = async () => {
     try {
-      await apiRequest(role === "rider" ? apiRoutes.logoutUser : apiRoutes.logoutCaptain, {
-        method: "GET",
-      });
+      await apiRequest(role === "rider" ? apiRoutes.logoutUser : apiRoutes.logoutCaptain, { method: "GET" });
     } finally {
       clearSessionRole();
       router.replace("/login");
@@ -308,31 +204,20 @@ export default function RideDashboard({ role }: { role: Role }) {
   };
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-12">
-        <header className="flex items-center justify-between border-b pb-6">
+    <div className="min-h-screen bg-[#fafafa] text-[#111111]">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10">
+        <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-black/10 bg-white/80 p-5 backdrop-blur">
           <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">
-              {role === "rider" ? "Rider Dashboard" : "Captain Dashboard"}
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold">
-              {role === "rider" ? "Book a Ride" : "Manage Requests"}
-            </h1>
+            <p className="text-xs uppercase tracking-widest text-black/50">{role === "rider" ? "Rider Dashboard" : "Captain Dashboard"}</p>
+            <h1 className="mt-1 text-3xl font-bold">{role === "rider" ? "Book a Ride" : "Manage Requests"}</h1>
           </div>
-
-          <Button variant="ghost" onClick={handleLogout}>
-            Logout
-          </Button>
+          <Button variant="ghost" onClick={handleLogout} icon={<LogOut className="h-4 w-4" />}>Logout</Button>
         </header>
-
 
         {role === "rider" ? (
           <Card>
-            <CardHeader>
-              <CardTitle>Book a ride</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <form className="space-y-4" onSubmit={handleRiderSubmit}>
+            <form className="space-y-5" onSubmit={handleRiderSubmit}>
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="grid gap-2">
                   <Label htmlFor="pickup">Pickup location</Label>
                   <Input id="pickup" name="pickup" placeholder="Koramangala, Bangalore" required />
@@ -341,144 +226,89 @@ export default function RideDashboard({ role }: { role: Role }) {
                   <Label htmlFor="destination">Destination</Label>
                   <Input id="destination" name="destination" placeholder="MG Road, Bangalore" required />
                 </div>
-                <div className="space-y-3">
-                  {rideTypes.map((ride) => {
-                    const isSelected = selectedRide.id === ride.id;
+              </div>
 
-                    return (
-                      <button
-                        key={ride.id}
-                        type="button"
-                        onClick={() => setSelectedRide(ride)}
-                        className={`w-full rounded-xl border p-4 transition-all duration-150 ${isSelected
-                          ? "border-primary bg-primary/5 shadow-sm"
-                          : "border-border hover:border-primary/50 hover:bg-accent/40"
-                          }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="text-left">
-                            <p className="font-semibold text-base">{ride.title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {ride.description} • {ride.time} away
-                            </p>
-                          </div>
-
-                          <p className="text-base font-semibold">{ride.price}</p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <Button
-                  type="submit"
-                  size="lg"
-                  className="w-full rounded-xl"
-                  disabled={loadingRide}
-                >
-                  {loadingRide ? "Requesting ride..." : `Confirm ${selectedRide.title}`}
-                </Button>
-
-              </form>
-
-              {rideRequest ? (
-                <div className="rounded-2xl border border-border p-4">
-                  <p className="font-semibold">{rideRequest.pickup} → {rideRequest.destination}</p>
-                  {/* {rideRequest.status === "accepted" ? (
-                    
-
-                  ) : ( */}
-                    <p className="mt-3 text-sm text-muted-foreground">Current status: {rideRequest.status}</p>
-                  {/* )} */}
-
-                  {rideRequest.status !== "cancelled" && rideRequest.status !== "completed" ? (
-                    <Button
+              <div className="grid gap-3 md:grid-cols-2">
+                {rideTypes.map((ride) => {
+                  const isSelected = selectedRide.id === ride.id;
+                  return (
+                    <button
+                      key={ride.id}
                       type="button"
-                      variant="destructive"
-                      className="mt-4 w-full"
-                      onClick={handleRiderCancel}
-                      disabled={cancelingRide}
+                      onClick={() => setSelectedRide(ride)}
+                      className={`rounded-xl border p-4 text-left transition-all duration-200 ${
+                        isSelected ? "border-[#6366f1] bg-indigo-50 shadow-[0_10px_25px_rgba(0,0,0,0.1)]" : "border-black/10 bg-white hover:scale-[1.02]"
+                      }`}
                     >
-                      {cancelingRide ? "Cancelling..." : "Cancel ride"}
-                    </Button>
-                  ) : null}
-                </div>
-              ) : null}
+                      <p className="font-semibold">{ride.title}</p>
+                      <p className="text-sm text-black/60">{ride.description}</p>
+                      <p className="mt-2 text-lg font-bold text-[#6366f1]">{ride.price}</p>
+                    </button>
+                  );
+                })}
+              </div>
 
-              {riderStatus && (
-                <div className="rounded-lg bg-muted p-3 text-sm font-medium">
-                  {riderStatus}
-                </div>
-              )}
-            </CardContent>
+              <Button type="submit" className="w-full" loading={loadingRide}>{loadingRide ? "Requesting ride..." : `Confirm ${selectedRide.title}`}</Button>
+            </form>
+
+            {rideRequest ? (
+              <div className="mt-5 rounded-xl border border-black/10 bg-black/[0.02] p-4">
+                <p className="font-semibold">{rideRequest.pickup} → {rideRequest.destination}</p>
+                <p className="mt-2 text-sm text-black/60">Current status: {rideRequest.status}</p>
+                {rideRequest.status === "accepted" ? (
+                  <div className="mt-3 rounded-lg bg-emerald-50 p-3">
+                    <StatusBadge label="Captain is on the way" tone="success" />
+                  </div>
+                ) : null}
+                {rideRequest.status !== "cancelled" && rideRequest.status !== "completed" ? (
+                  <Button type="button" variant="danger" className="mt-4 w-full" onClick={handleRiderCancel} loading={cancelingRide}>
+                    {cancelingRide ? "Cancelling..." : "Cancel ride"}
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {riderStatus ? <p className="mt-4 text-sm font-medium text-black/70">{riderStatus}</p> : null}
           </Card>
         ) : (
           <Card>
-            <CardHeader>
-              <CardTitle>Nearby ride requests</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                {rideOffers.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-muted/40 p-8 text-center">
-                    <p className="font-semibold">No ride requests</p>
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Stay online. New ride requests will appear automatically.
-                    </p>
-                  </div>
-                ) : (
-                  rideOffers.map((ride) => (
-                    <div
-                      key={ride.id}
-                      className="rounded-xl border border-border bg-card p-5 shadow-sm"
-                    >
-                      <div className="space-y-1">
-                        <p className="font-semibold text-base">
-                          {ride.pickup} → {ride.destination}
-                        </p>
-
-                        <p className="text-sm text-muted-foreground">
-                          Rider: {ride.rider}
-                        </p>
-
-                        <p className="text-sm text-muted-foreground">
-                          ETA: {ride.eta} • Fare: {ride.price}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 flex gap-3">
-                        <Button
-                          className="flex-1"
-                          onClick={() => handleAcceptRide(ride.id, ride.backendId)}
-                          disabled={!ride.backendId}
-                        >
-                          Accept
-                        </Button>
-
-                        <Button
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() =>
-                            setRideOffers((prev) =>
-                              prev.filter((r) => r.id !== ride.id)
-                            )
-                          }
-                        >
-                          Cancel
-                        </Button>
-                      </div>
+            <h2 className="text-xl font-semibold">Nearby ride requests</h2>
+            <div className="mt-4 space-y-4">
+              {rideOffers.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-black/20 bg-black/[0.02] p-8 text-center">
+                  <p className="font-semibold">No ride requests</p>
+                  <p className="mt-2 text-sm text-black/60">Stay online. New ride requests will appear automatically.</p>
+                </div>
+              ) : (
+                rideOffers.map((ride) => (
+                  <div key={ride.id} className="rounded-xl border border-black/10 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5">
+                    <p className="font-semibold">{ride.pickup} → {ride.destination}</p>
+                    <p className="text-sm text-black/60">Rider: {ride.rider}</p>
+                    <p className="text-sm text-black/60">ETA: {ride.eta} • Fare: {ride.price}</p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                      <Button className="w-full" variant="success" onClick={() => handleAcceptRide(ride.id, ride.backendId)} disabled={!ride.backendId} icon={<CheckCircle2 className="h-4 w-4" />}>Accept</Button>
+                      <Button className="w-full" variant="danger" onClick={() => handleCaptainCancel(ride.id, ride.backendId)} icon={<XCircle className="h-4 w-4" />}>Cancel</Button>
                     </div>
-                  ))
-                )}
+                  </div>
+                ))
+              )}
+            </div>
+            {captainStatus ? <p className="mt-4 text-sm font-semibold text-black/70">{captainStatus}</p> : null}
+            {acceptedRideId && acceptedRide ? (
+              <div className="mt-4 rounded-xl bg-indigo-50 p-4">
+                <div className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-700"><Clock3 className="h-4 w-4" /> Active ride from {acceptedRide.pickup}</div>
               </div>
-
-              {captainStatus ? <p className="text-sm font-semibold">{captainStatus}</p> : null}
-              {acceptedRideId && acceptedRide ? (
-                <p className="text-sm text-muted-foreground">Active ride from {acceptedRide.pickup}</p>
-              ) : null}
-            </CardContent>
+            ) : null}
           </Card>
         )}
+
+        {role === "rider" && rideRequest?.status === "accepted" ? (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <div className="inline-flex items-center gap-2 font-semibold text-emerald-700">
+              <MapPinned className="h-4 w-4" /> Captain is on the way
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
